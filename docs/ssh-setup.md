@@ -8,7 +8,7 @@ This guide covers SSH key generation and configuration for connecting to your tm
 
 ## Table of Contents
 
-1. [SSH Key Types](#ssh-key-types)
+1. [SSH Key Type](#ssh-key-type)
 2. [Generating SSH Keys](#generating-ssh-keys)
 3. [Adding Keys to Remote Host](#adding-keys-to-remote-host)
 4. [SSH Config File](#ssh-config-file)
@@ -16,23 +16,9 @@ This guide covers SSH key generation and configuration for connecting to your tm
 
 ---
 
-## SSH Key Types
-
-We recommend **ED25519** keys for modern, secure authentication:
-
-| Key Type | Security | Speed | Compatibility | Recommendation |
-| ---------- | ---------- | ------- | --------------- | ---------------- |
-| ED25519 | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Modern systems | **Recommended** |
-| RSA 4096 | ⭐⭐⭐⭐ | ⭐⭐⭐ | Universal | Legacy systems only |
-| ECDSA | ⭐⭐⭐ | ⭐⭐⭐⭐ | Most systems | Not recommended |
-
----
-
 ## Generating SSH Keys
 
 ### On macOS/Linux
-
-#### Generate ED25519 Key (Recommended)
 
 ```bash
 # Generate a new ED25519 key
@@ -53,13 +39,6 @@ ssh-keygen -t ed25519 -f ~/.ssh/tmux_demo_key -C "tmux-demo"
 - Private key: `~/.ssh/tmux_demo_key`
 - Public key: `~/.ssh/tmux_demo_key.pub`
 
-#### Generate RSA 4096 Key (Legacy)
-
-```bash
-# Only use if ED25519 is not supported
-ssh-keygen -t rsa -b 4096 -f ~/.ssh/tmux_demo_key -C "tmux-demo"
-```
-
 ### On Windows
 
 #### Using PowerShell (Windows 10+)
@@ -69,25 +48,14 @@ ssh-keygen -t rsa -b 4096 -f ~/.ssh/tmux_demo_key -C "tmux-demo"
 ssh-keygen -t ed25519 -f C:\Users\YourName\.ssh\tmux_demo_key -C "tmux-demo"
 ```
 
+**Note**: Windows 10 and later include OpenSSH by default. If the command isn't found, enable it in Settings → Apps → Optional Features → OpenSSH Client.
+
 #### Using Git Bash
 
 ```bash
 # Same as macOS/Linux
 ssh-keygen -t ed25519 -f ~/.ssh/tmux_demo_key -C "tmux-demo"
 ```
-
-#### Using PuTTYgen (Alternative)
-
-1. Download PuTTYgen from [PuTTY website](https://www.putty.org/)
-2. Run PuTTYgen
-3. Select "EdDSA" and "Curve25519" (ED25519)
-4. Click "Generate" and move mouse for randomness
-5. Add comment: "tmux-demo"
-6. Set passphrase (optional)
-7. Save private key as `.ppk` file
-8. Copy public key text for later use
-
-**Note**: For OpenSSH format (needed for VS Code), use "Conversions" → "Export OpenSSH key"
 
 ---
 
