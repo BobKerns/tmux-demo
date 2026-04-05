@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  tmux-demo:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        USERNAME: developer
+        USER_UID: 1000
+        USER_GID: 1000
+    container_name: tmux-demo
+    image: tmux-demo:latest
+    ports:
+      # Map container SSH port 22 to host port 2222
+      - "2222:22"
+    volumes:
+      # Persist user home directory
+      - tmux-demo-home:/home/developer
+      # Optional: Mount a local workspace directory
+      # - ./workspace:/home/developer/workspace
+    restart: unless-stopped
+    # Keep container running
+    stdin_open: true
+    tty: true
+
+volumes:
+  tmux-demo-home:
+    driver: local

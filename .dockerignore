@@ -1,0 +1,45 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Documentation (not needed in the image)
+*.md
+docs/
+
+# Scripts (not needed in the image build, copied separately if needed)
+scripts/
+
+# Docker files
+docker-compose.yml
+.dockerignore
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.log
+tmp/
+temp/
+
+# SSH keys (NEVER include in image)
+*.pem
+*.key
+id_*
+*.pub
+
+# Build artifacts
+*.o
+*.a
+*.so
+build/
+dist/

@@ -1,0 +1,45 @@
+# SSH Keys - NEVER commit private keys!
+*.pem
+*.ppk
+id_*
+!*.pub
+
+# VS Code
+.vscode/
+!.vscode/settings.json
+
+# Docker
+.env
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+.nfs*
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+*~
+
+# Node modules (if you add any JavaScript tools later)
+node_modules/
+
+# Python (if you add any Python tools later)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# Build outputs
+dist/
+build/
