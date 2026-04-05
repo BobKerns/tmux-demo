@@ -5,7 +5,7 @@ id_*
 !*.pub
 
 # VS Code
-.vscode/
+.vscode/*
 !.vscode/settings.json
 
 # Docker
