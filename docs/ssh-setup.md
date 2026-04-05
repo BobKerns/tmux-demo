@@ -93,65 +93,102 @@ ssh-keygen -t ed25519 -f ~/.ssh/tmux_demo_key -C "tmux-demo"
 
 ## Adding Keys to Remote Host
 
-### Method 1: Using ssh-copy-id (macOS/Linux)
+Choose the method based on your target environment:
+
+### For Docker Container (Local Testing)
+
+**The Docker container has password authentication disabled**, so you need to add the key using Docker commands:
 
 ```bash
-# Copy public key to Docker container
-ssh-copy-id -i ~/.ssh/tmux_demo_key.pub -p 2222 developer@localhost
+# Step 1: Ensure the container is running
+docker compose ps
 
-# Copy public key to AWS EC2
-ssh-copy-id -i ~/.ssh/aws_key.pub ubuntu@ec2-xx-xxx.compute-1.amazonaws.com
+# Step 2: Copy public key into container and add to authorized_keys
+docker cp ~/.ssh/tmux_demo_key.pub tmux-demo:/tmp/key.pub && \
+docker exec -u developer tmux-demo bash -c \
+  "mkdir -p ~/.ssh && \
+   chmod 700 ~/.ssh && \
+   cat /tmp/key.pub >> ~/.ssh/authorized_keys && \
+   chmod 600 ~/.ssh/authorized_keys && \
+   rm /tmp/key.pub"
+
+# Step 3: Test the connection
+ssh -i ~/.ssh/tmux_demo_key -p 2222 developer@localhost
 ```
 
-### Method 2: Manual Copy (All Platforms)
-
-#### Step 1: Display your public key
-
-```bash
-# On macOS/Linux
-cat ~/.ssh/tmux_demo_key.pub
-
-# On Windows PowerShell
-Get-Content C:\Users\YourName\.ssh\tmux_demo_key.pub
+**Windows users (PowerShell):**
+```powershell
+docker cp $env:USERPROFILE\.ssh\tmux_demo_key.pub tmux-demo:/tmp/key.pub
+docker exec -u developer tmux-demo bash -c "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat /tmp/key.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && rm /tmp/key.pub"
 ```
 
-**Copy the entire output** (starts with `ssh-ed25519`)
+### For AWS EC2 Instance
 
-#### Step 2: Add to remote host
+AWS EC2 instances typically already have an initial key (the `.pem` file you got when creating the instance).
+You have two options:
 
-**For Docker container:**
+#### Option A: Add Key Using Existing AWS Key
 
-```bash
-# Copy key to container
-docker cp ~/.ssh/tmux_demo_key.pub tmux-demo:/tmp/key.pub
-
-# Add to authorized_keys
-docker exec -u developer tmux-demo bash -c "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat /tmp/key.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
-```
-
-**For AWS EC2:**
+If you have the original AWS `.pem` key:
 
 ```bash
-# Connect to instance
-ssh -i ~/.ssh/your-aws-key.pem ubuntu@your-ec2-instance
+# Step 1: Copy your new public key to the instance
+scp -i ~/.ssh/your-aws-key.pem ~/.ssh/tmux_demo_key.pub ubuntu@ec2-xx-xxx.compute-1.amazonaws.com:/tmp/
 
-# Add key manually
-mkdir -p ~/.ssh
-chmod 700 ~/.ssh
-nano ~/.ssh/authorized_keys
-# Paste your public key on a new line
-# Save and exit (Ctrl+X, Y, Enter)
+# Step 2: SSH in with the AWS key
+ssh -i ~/.ssh/your-aws-key.pem ubuntu@ec2-xx-xxx.compute-1.amazonaws.com
 
-# Set permissions
+# Step 3: Add the new key to authorized_keys
+cat /tmp/tmux_demo_key.pub >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
+rm /tmp/tmux_demo_key.pub
 exit
+
+# Step 4: Test with your new key
+ssh -i ~/.ssh/tmux_demo_key ubuntu@ec2-xx-xxx.compute-1.amazonaws.com
 ```
 
-### Method 3: Using the setup-ssh.sh Script
+**Alternative using ssh-copy-id** (if you have existing access):
+```bash
+ssh-copy-id -i ~/.ssh/tmux_demo_key.pub -o "IdentityFile ~/.ssh/your-aws-key.pem" ubuntu@ec2-xx-xxx.compute-1.amazonaws.com
+```
+
+#### Option B: Add Key Via AWS Console/Session Manager
+
+If you only have console access (AWS Systems Manager Session Manager):
+
+1. Start a session in the AWS Console
+2. Switch to your user:
+   ```bash
+   sudo su - ubuntu
+   ```
+3. Edit authorized_keys:
+   ```bash
+   mkdir -p ~/.ssh
+   chmod 700 ~/.ssh
+   nano ~/.ssh/authorized_keys
+   ```
+4. Paste your public key on a new line
+   - Get the public key: Run `cat ~/.ssh/tmux_demo_key.pub` on your local machine
+   - Copy the entire output (starts with `ssh-ed25519` or `ssh-rsa`)
+   - Paste into the nano editor
+5. Save and exit (Ctrl+X, Y, Enter)
+6. Set permissions:
+   ```bash
+   chmod 600 ~/.ssh/authorized_keys
+   ```
+7. Test from your local machine:
+   ```bash
+   ssh -i ~/.ssh/tmux_demo_key ubuntu@ec2-xx-xxx.compute-1.amazonaws.com
+   ```
+
+#### Option C: Use the Setup Script
+
+If you've already copied this repository to your EC2 instance:
 
 ```bash
-# From inside the remote system (Docker or EC2)
-./scripts/setup-ssh.sh /path/to/public/key.pub
+# On the EC2 instance (after copying your .pub key there)
+./scripts/setup-ssh.sh /path/to/tmux_demo_key.pub
 ```
 
 ---

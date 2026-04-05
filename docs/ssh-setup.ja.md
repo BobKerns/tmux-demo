@@ -138,74 +138,103 @@ PuTTYgen → Conversions → Export OpenSSH key
 
 ---
 
-## 公開鍵の追加
+## リモートホストへの鍵の追加
 
-公開鍵 (`.pub`ファイル) をリモートマシンに追加する必要があります。
+対象環境に応じて方法を選択してください:
 
-### Docker コンテナへ
+### Dockerコンテナ用（ローカルテスト）
 
-**方法 1: スクリプトを使用 (最も簡単)**
-
-```bash
-# ローカルマシンから実行
-docker-compose exec tmux-demo /app/scripts/setup-ssh.sh /path/to/your/public/key.pub
-```
-
-**方法 2: 手動コピー**
+**Dockerコンテナはパスワード認証が無効**になっているため、Dockerコマンドを使用して鍵を追加する必要があります:
 
 ```bash
-# 公開鍵の内容を表示
-cat ~/.ssh/id_ed25519.pub
+# ステップ1: コンテナが実行中であることを確認
+docker compose ps
 
-# 出力をコピー (ssh-ed25519 で始まり、emailで終わる)
+# ステップ2: 公開鍵をコンテナにコピーしてauthorized_keysに追加
+docker cp ~/.ssh/tmux_demo_key.pub tmux-demo:/tmp/key.pub && \
+docker exec -u developer tmux-demo bash -c \
+  "mkdir -p ~/.ssh && \
+   chmod 700 ~/.ssh && \
+   cat /tmp/key.pub >> ~/.ssh/authorized_keys && \
+   chmod 600 ~/.ssh/authorized_keys && \
+   rm /tmp/key.pub"
 
-# Dockerコンテナ内で
-docker-compose exec tmux-demo bash
-
-# コンテナ内で
-mkdir -p ~/.ssh
-chmod 700 ~/.ssh
-echo "ここに公開鍵を貼り付け" >> ~/.ssh/authorized_keys
-chmod 600 ~/.ssh/authorized_keys
-exit
+# ステップ3: 接続をテスト
+ssh -i ~/.ssh/tmux_demo_key -p 2222 developer@localhost
 ```
 
-**方法 3: Dockerボリューム**
-
-```bash
-# ローカル公開鍵をコピー
-cat ~/.ssh/id_ed25519.pub | docker-compose exec -T tmux-demo bash -c "mkdir -p /home/developer/.ssh && cat >> /home/developer/.ssh/authorized_keys && chmod 600 /home/developer/.ssh/authorized_keys && chmod 700 /home/developer/.ssh"
-```
-
-### AWS EC2へ
-
-#### AWS起動時に鍵を追加
-
-EC2インスタンス起動時に:
-
-1. **キーペア**セクションで:
-   - 既存のキーペアを選択、または
-   - 新しいキーペアを作成
-
-AWSが秘密鍵をダウンロードします (例: `aws-key.pem`)
-
-#### 既存のEC2インスタンスに鍵を追加
-
-**ローカルマシンに別の鍵がある場合:**
-
-```bash
-# MacOS/Linux
-ssh-copy-id -i ~/.ssh/id_ed25519.pub ubuntu@your-ec2-ip
-
-# または手動で
-cat ~/.ssh/id_ed25519.pub | ssh -i ~/.ssh/aws-key.pem ubuntu@your-ec2-ip "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && chmod 700 ~/.ssh"
-```
-
-**Windows:**
-
+**Windowsユーザー（PowerShell）:**
 ```powershell
-# PowerShellで
-type C:\Users\YourName\.ssh\id_ed25519.pub | ssh -i C:\Users\YourName\.ssh\aws-key.pem ubuntu@your-ec2-ip "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && chmod 700 ~/.ssh"
+docker cp $env:USERPROFILE\.ssh\tmux_demo_key.pub tmux-demo:/tmp/key.pub
+docker exec -u developer tmux-demo bash -c "mkdir -p ~/.ssh && chmod 700 ~/.ssh && cat /tmp/key.pub >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys && rm /tmp/key.pub"
+```
+
+### AWS EC2インスタンス用
+
+AWS EC2インスタンスには通常、初期鍵（インスタンス作成時に取得した`.pem`ファイル）が既に設定されています。以下の2つのオプションがあります:
+
+#### オプションA：既存のAWS鍵を使用して鍵を追加
+
+元のAWS `.pem`鍵がある場合:
+
+```bash
+# ステップ1: 新しい公開鍵をインスタンスにコピー
+scp -i ~/.ssh/your-aws-key.pem ~/.ssh/tmux_demo_key.pub ubuntu@ec2-xx-xxx.compute-1.amazonaws.com:/tmp/
+
+# ステップ2: AWS鍵でSSH接続
+ssh -i ~/.ssh/your-aws-key.pem ubuntu@ec2-xx-xxx.compute-1.amazonaws.com
+
+# ステップ3: 新しい鍵をauthorized_keysに追加
+cat /tmp/tmux_demo_key.pub >> ~/.ssh/authorized_keys
+chmod 600 ~/.ssh/authorized_keys
+rm /tmp/tmux_demo_key.pub
+exit
+
+# ステップ4: 新しい鍵でテスト
+ssh -i ~/.ssh/tmux_demo_key ubuntu@ec2-xx-xxx.compute-1.amazonaws.com
+```
+
+**ssh-copy-idを使用する方法**（既存のアクセスがある場合）:
+```bash
+ssh-copy-id -i ~/.ssh/tmux_demo_key.pub -o "IdentityFile ~/.ssh/your-aws-key.pem" ubuntu@ec2-xx-xxx.compute-1.amazonaws.com
+```
+
+#### オプションB：AWSコンソール/Session Manager経由で鍵を追加
+
+コンソールアクセスのみの場合（AWS Systems Manager Session Manager）:
+
+1. AWSコンソールでセッションを開始
+2. ユーザーに切り替え:
+   ```bash
+   sudo su - ubuntu
+   ```
+3. authorized_keysを編集:
+   ```bash
+   mkdir -p ~/.ssh
+   chmod 700 ~/.ssh
+   nano ~/.ssh/authorized_keys
+   ```
+4. 公開鍵を新しい行に貼り付け
+   - 公開鍵を取得: ローカルマシンで`cat ~/.ssh/tmux_demo_key.pub`を実行
+   - 出力全体をコピー（`ssh-ed25519`または`ssh-rsa`で始まる）
+   - nanoエディタに貼り付け
+5. 保存して終了（Ctrl+X、Y、Enter）
+6. 権限を設定:
+   ```bash
+   chmod 600 ~/.ssh/authorized_keys
+   ```
+7. ローカルマシンからテスト:
+   ```bash
+   ssh -i ~/.ssh/tmux_demo_key ubuntu@ec2-xx-xxx.compute-1.amazonaws.com
+   ```
+
+#### オプションC：セットアップスクリプトを使用
+
+このリポジトリを既にEC2インスタンスにコピーしている場合:
+
+```bash
+# EC2インスタンス上で（.pubキーをコピーした後）
+./scripts/setup-ssh.sh /path/to/tmux_demo_key.pub
 ```
 
 ---
