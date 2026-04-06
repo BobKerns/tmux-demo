@@ -2,10 +2,13 @@
 
 [日本語版はこちら / Japanese version](README.ja.md)
 
-Setup guide for remote AWS development with tmux, emacs, and VS Code Remote-SSH. Optimized for GPU-heavy ML training tasks on AWS EC2.
+Setup guide for remote AWS development with tmux, emacs, and VS Code Remote-SSH.
+Optimized for GPU-heavy ML training tasks on AWS EC2.
 
 Includes emacs-friendly tmux configuration (Ctrl+^ prefix) for persistent terminal sessions.
 
+> **New to tmux?** Start with the [**Usage Guide**](docs/USAGE.md) to understand sessions, windows, and recommended workflows.
+>
 > **Note**: For local testing without AWS access, see [Docker Setup Guide](docs/docker-setup.md).
 
 ---
@@ -285,6 +288,7 @@ MIT License - See LICENSE file for details
 
 ### Documentation
 
+- [**tmux Usage Guide**](docs/USAGE.md) - Essential guide to sessions, windows, and workflows ⭐
 - [SSH Setup Guide](docs/ssh-setup.md) - Generate and configure SSH keys
 - [VS Code Remote-SSH Guide](docs/vscode-remote-ssh.md) - Detailed Remote-SSH setup
 - [VS Code Troubleshooting](docs/vscode-troubleshooting.md) - Common issues and solutions
