@@ -1,10 +1,10 @@
-# tmux-demo プロジェクト
+# tmux + emacs 開発環境
 
 [English](README.md)
 
-Ubuntu、tmux、Emacs、VS Code Remote開発環境のセットアップガイド
+Ubuntu、tmux、emacs、VS Code Remote-SSH開発環境のセットアップガイド。
 
-このプロジェクトは、Dockerコンテナでローカルにテストできる開発環境を提供し、AWS EC2インスタンスに展開することを想定しています。
+Dockerでローカルテスト、AWS EC2へ展開。emacs対応のtmux設定（Ctrl+^プレフィックス）を含みます。
 
 ---
 
@@ -14,7 +14,7 @@ Ubuntu、tmux、Emacs、VS Code Remote開発環境のセットアップガイド
 2. [AWS EC2のセットアップ](#2-aws-ec2のセットアップ)
 3. [VS Code Remote-SSHの使用](#3-vs-code-remote-sshの使用)
 4. [Windows PSMUXクライアント](#4-windows-psmuxクライアント)
-5. [VS CodeターミナルとtmuxとConの統合](#5-vs-codeターミナルとtmuxの統合)
+5. [VS Codeターミナルとtmuxの統合](#5-vs-codeターミナルとtmuxの統合オプション)
 
 ---
 
@@ -336,125 +336,44 @@ tmux attach -t <name>         # セッションに再接続
 
 ---
 
-## 5. VS CodeターミナルとtmuxのConning合
+## 5. VS Codeターミナルとtmuxの統合（オプション）
 
-*注: このセクションは、Remote-SSH (セクション3) とは別のものです。混乱を避けるため分けています。*
+*注: これはオプションの高度な機能で、基本的なRemote-SSH使用とは別のものです。*
 
-VS Code統合ターミナル内でtmuxを使用します。
+### 概要
 
-### オプション A: 手動でtmuxを実行
+VS Code統合ターミナルをtmuxと連携させることで以下が可能:
 
-最もシンプルなアプローチ:
+- **永続的なセッション**: VS Code切断後もターミナル作業が継続
+- **ターミナル多重化**: VS Codeターミナル内で複数ペイン
+- **ネットワーク耐性**: 接続が切れても作業を継続可能
 
-**1. VS Code統合ターミナルを開く:**
+### クイック例
 
-- macOS: `` Ctrl+` ``
-- Windows/Linux: `` Ctrl+` ``
+最もシンプルな方法 - VS Codeターミナルで手動でtmuxを実行:
 
-**2. tmuxを起動:**
+1. Remote-SSHでリモートホストに接続
+2. VS Codeターミナルを開く (`` Ctrl+` ``)
+3. `tmux` を実行してセッション開始
+4. プレフィックス `Ctrl+^` でtmuxを制御
 
-```bash
-tmux
-```
+### いつ使うべきか
 
-**3. 通常どおりtmuxを使用**
+✅ **適している場合**:
+- 切断にも耐える長時間実行プロセス
+- 複雑なマルチペインターミナル設定
+- 不安定なネットワーク接続
 
-このアプローチでは、tmuxの起動タイミングを完全に制御できます。
+❌ **不要な場合**:
+- 基本的なRemote-SSH開発
+- シンプルなターミナル使用
+- 切断がほとんどない環境
 
-### オプション B: 自動tmux起動
+### 完全ガイド
 
-VS Codeが自動的にtmuxを起動するように設定:
+自動接続、シェルプロファイル統合、トラブルシューティングの詳細:
 
-**`settings.json` を編集:**
-
-```json
-{
-  "terminal.integrated.profiles.linux": {
-    "tmux": {
-      "path": "tmux",
-      "args": ["new-session", "-A", "-s", "vscode"]
-    }
-  },
-  "terminal.integrated.defaultProfile.linux": "tmux"
-}
-```
-
-**これにより:**
-
-- 新しいターミナルが自動的にtmuxセッションに接続
-- セッション名 "vscode" を使用
-- セッションが既に存在する場合は再接続
-
-### オプション C: シェルプロファイルで設定
-
-tmuxを常に使用したい場合:
-
-**`~/.bashrc` または `~/.zshrc` に追加:**
-
-```bash
-# tmuxの自動起動
-if command -v tmux &> /dev/null && [ -z "$TMUX" ] && [ -z "$VSCODE_GIT_IPC_HANDLE" ]; then
-  tmux attach -t vscode || tmux new -s vscode
-fi
-```
-
-**この設定:**
-
-- VS Code以外でも動作 (SSHセッションでも同様)
-- 既にtmux内にいる場合はネストしない
-- VS Code Git統合を妨げない
-- セッション "vscode" に接続、無ければ作成
-
-### tmuxとVS Codeの統合のベストプラクティス
-
-**1. マウスモードを有効化**
-
-既に `.tmux.conf` で設定されています:
-
-```
-set -g mouse on
-```
-
-これにより、VS Codeターミナル内でマウスクリックによるペイン選択が可能になります。
-
-**2. カラースキームの一致**
-
-VS CodeのテーマとtmuxのステータスバーColorを調和させます。
-
-**3. フォント設定**
-
-VS Codeのターミナルフォントがtmux表示に使用されることを確認:
-
-```json
-{
-  "terminal.integrated.fontFamily": "Cascadia Code, Menlo, monospace",
-  "terminal.integrated.fontSize": 14
-}
-```
-
-**4. キーバインドの競合を避ける**
-
-tmuxプレフィックス (Ctrl+^) はほとんどのVS Codeショートカットと競合しません。もし問題がある場合は、VS Codeの `keybindings.json` で調整してください。
-
-### トラブルシューティング
-
-**問題: tmuxが起動しない**
-
-```bash
-which tmux  # インストール確認
-```
-
-**問題: ネストされたtmuxセッション**
-
-`$TMUX` 環境変数をチェック - これにより上記のスクリプトがネストを防ぎます。
-
-**問題: カラーが正しく表示されない**
-
-`.tmux.conf` で確認:
-
-```
-set -g default-terminal "screen-256color"
-```
+**📚 完全ガイドを参照:** [VS Code tmux統合](docs/vscode-tmux-integration.ja.md) ([English](docs/vscode-tmux-integration.md))
 
 ---
 
