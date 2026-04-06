@@ -279,7 +279,7 @@ VS Codeの統合ターミナルがtmuxと自動的に連携するように設定
 
 ## ライセンス
 
-MIT License - LICENSEファイルで詳細を参照
+MIT License - [LICENSE](LICENSE)ファイルで詳細を参照
 
 ---
 
