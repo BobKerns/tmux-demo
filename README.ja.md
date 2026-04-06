@@ -1,482 +1,302 @@
 # tmux + emacs 開発環境
 
-[English](README.md)
+[English version](README.md)
 
-Ubuntu、tmux、emacs、VS Code Remote-SSH開発環境のセットアップガイド。
+tmux、emacs、VS Code Remote-SSHを使用したAWSリモート開発のセットアップガイド。AWS EC2でのGPU集約型ML学習タスクに最適化されています。
 
-Dockerでローカルテスト、AWS EC2へ展開。emacs対応のtmux設定（Ctrl+^プレフィックス）を含みます。
+永続的なターミナルセッション用のemacs対応tmux設定(Ctrl+^プレフィックス)を含みます。
+
+> **注意**: AWSアクセスなしでローカルテストを行う場合は、[Dockerセットアップガイド](docs/docker-setup.ja.md)を参照してください。
 
 ---
 
 ## 目次
 
-1. [Docker環境のセットアップ](#1-docker環境のセットアップ)
-2. [AWS EC2のセットアップ](#2-aws-ec2のセットアップ)
-3. [VS Code Remote-SSHの使用](#3-vs-code-remote-sshの使用)
-4. [Windows PSMUXクライアント](#4-windows-psmuxクライアント)
-5. [VS Codeターミナルとtmuxの統合](#5-vs-codeターミナルとtmuxの統合オプション)
+1. [AWS EC2セットアップ](#セクション1-aws-ec2セットアップ)
+2. [VS Code Remote-SSH](#セクション2-vs-code-remote-ssh)
+3. [Windows PSMUXターミナルクライアント](#セクション3-windows-psmux-tmuxクライアント)
+4. [VS Codeターミナルとtmuxの統合](#セクション4-vs-codeターミナルとtmuxの統合オプション)
 
 ---
 
-## 1. Docker環境のセットアップ
+## セクション1: AWS EC2セットアップ
 
-Dockerを使用してローカル環境でセットアップをテストします。
+tmuxとemacsを使用したリモート開発のためのAWS EC2インスタンスをセットアップします。
 
 ### 前提条件
 
-- Docker Desktop (Windows、macOS、Linux)
-- SSH公開鍵・秘密鍵のペア
+- Linux実行中のAWS EC2インスタンス(Ubuntu/Debian用に最適化)
+- インスタンスへのSSHアクセス
+- SSHキーペア([docs/ssh-setup.ja.md](docs/ssh-setup.ja.md)を参照)
 
-### 構築と実行
+### セットアップ手順
 
-**1. イメージのビルド:**
-
-```bash
-docker-compose build
-```
-
-**2. コンテナの起動:**
+#### 1. インスタンスに接続
 
 ```bash
-docker-compose up -d
+ssh -i ~/.ssh/your-aws-key.pem <ユーザー名>@<EC2ホスト名>
 ```
 
-**3. コンテナの実行確認:**
+#### 2. tmuxとemacsをインストール
+
+**オプションA: インストールスクリプトを使用**(推奨):
 
 ```bash
-docker ps
+# このリポジトリをクローン
+git clone https://github.com/BobKerns/tmux-demo.git
+cd tmux-demo
+
+# インストールスクリプトを実行
+./scripts/install-tmux-emacs.sh
 ```
 
-`tmux-demo` という名前のコンテナが実行中であることを確認してください。
-
-### SSH設定
-
-**公開鍵の追加:**
+**オプションB: 手動インストール**:
 
 ```bash
-# Dockerコンテナ内に公開鍵をコピー
-docker-compose exec tmux-demo bash -c "mkdir -p /home/developer/.ssh && chmod 700 /home/developer/.ssh"
+# パッケージリストを更新
+sudo apt-get update
 
-# ローカルマシンから公開鍵をコピー
-cat ~/.ssh/your_public_key.pub | docker-compose exec -T tmux-demo bash -c "cat >> /home/developer/.ssh/authorized_keys && chmod 600 /home/developer/.ssh/authorized_keys"
+# tmux、emacs、および必須ツールをインストール
+sudo apt-get install -y tmux emacs-nox git curl wget vim build-essential
+
+# インストールを確認
+tmux -V
+emacs --version
 ```
 
-**またはスクリプトを使用:**
+#### 3. tmux設定をセットアップ
 
 ```bash
-docker-compose exec tmux-demo /app/scripts/setup-ssh.sh /path/to/your/public/key.pub
+# emacs対応のtmux設定をダウンロード
+wget https://raw.githubusercontent.com/BobKerns/tmux-demo/main/.tmux.conf -O ~/.tmux.conf
+
+# またはクローンしたリポジトリからコピー
+cp ~/tmux-demo/.tmux.conf ~/.tmux.conf
 ```
 
-### SSH接続
-
-**SSHクライアントから接続:**
+#### 4. tmuxをテスト
 
 ```bash
-ssh -i ~/.ssh/your_private_key -p 2222 developer@localhost
-```
-
-**SSH configファイルの設定 (`~/.ssh/config`):**
-
-```
-Host tmux-demo
-    HostName localhost
-    Port 2222
-    User developer
-    IdentityFile ~/.ssh/your_private_key
-```
-
-その後、以下のコマンドで接続:
-
-```bash
-ssh tmux-demo
-```
-
-### tmux使用の開始
-
-**接続後、tmuxを起動:**
-
-```bash
+# 新しいtmuxセッションを開始
 tmux
+
+# プレフィックスキー(Ctrl+^)をテスト
+# 新しいウィンドウを作成してみる: Ctrl+^ の後に c
 ```
 
-**主要なtmuxコマンド (プレフィックス: Ctrl+^):**
-
-- `Ctrl+^ c` - 新しいウィンドウを作成
-- `Ctrl+^ |` - 横に分割(カスタム)
-- `Ctrl+^ -` - 縦に分割(カスタム)
-- `Ctrl+^ 矢印キー` - ペイン間の移動
-- `Ctrl+^ d` - セッションからデタッチ
-
-**セッションの再接続:**
-
-```bash
-tmux attach
-```
+**重要**: プレフィックスキーは**Ctrl+^**です(Ctrl+bではありません)!
 
 ---
 
-## 2. AWS EC2のセットアップ
+## セクション2: VS Code Remote-SSH
 
-本番環境のAWS EC2インスタンスへの展開。
+VS Codeを AWS EC2リモート環境に接続します。
 
-### EC2インスタンスの起動
+### インストール
 
-**1. AWSコンソールでEC2インスタンスを起動:**
+1. **VS Codeをインストール**([ダウンロード](https://code.visualstudio.com/))
 
-- **AMI:** Ubuntu Server 24.04 LTS
-- **インスタンスタイプ:** t2.micro (または要件に応じて)
-- **キーペア:** 既存のキーを選択するか新規作成
-- **セキュリティグループ:**
-  - SSH (ポート22) - 自分のIPからのアクセスを許可
-  - カスタムTCP (必要に応じて)
+2. **Remote-SSH拡張機能をインストール**:
+   - VS Codeを開く
+   - `Ctrl+Shift+X`(macOSでは`Cmd+Shift+X`)を押す
+   - "Remote - SSH"を検索
+   - Microsoft提供の拡張機能をインストール
 
-**2. Elastic IPの関連付け (推奨):**
+### 設定
 
-固定IPアドレスにより、接続設定が簡単になります。
+#### AWS EC2
 
-### インスタンスへの接続
+1. **SSH設定ファイルを開く**:
+   - `Ctrl+Shift+P` → "Remote-SSH: Open SSH Configuration File"
+   - SSH設定を選択(通常は`~/.ssh/config`)
 
-```bash
-ssh -i ~/.ssh/aws-key.pem ubuntu@your-ec2-public-ip
-```
+2. **設定を追加**:
+   ```
+   Host aws-ml
+       HostName <EC2ホスト名>
+       User <ユーザー名>
+       Port 22
+       IdentityFile ~/.ssh/your-aws-key.pem
+   ```
 
-### tmuxとEmacsのインストール
+3. **接続**:
+   - `Ctrl+Shift+P` → "Remote-SSH: Connect to Host"
+   - `aws-ml`を選択
+   - 初回接続時にVS Code Serverがインストールされます
 
-**提供されたスクリプトの使用:**
+### Remote-SSHの使用
 
-```bash
-# スクリプトをインスタンスにコピー(ローカルマシンから実行)
-scp -i ~/.ssh/aws-key.pem scripts/install-tmux-emacs.sh ubuntu@your-ec2-ip:~
+接続後:
 
-# インスタンスに接続
-ssh -i ~/.ssh/aws-key.pem ubuntu@your-ec2-ip
+- **ファイルエクスプローラー**: サイドバーでリモートファイルを閲覧
+- **ターミナル**: リモートマシンで開く(`` Ctrl+` ``を押す)
+- **拡張機能**: リモートに拡張機能をインストール(一部はリモートインストールが必要)
+- **Git**: リモートマシン上のリポジトリで動作
+- **デバッグ**: リモートで実行されるコードをデバッグ
 
-# スクリプトの実行
-chmod +x install-tmux-emacs.sh
-./install-tmux-emacs.sh
-```
+### よくあるタスク
 
-**手動インストール:**
-
-```bash
-# パッケージリストの更新
-sudo apt update
-
-# 必要なパッケージのインストール
-sudo apt install -y tmux emacs-nox git curl wget vim build-essential
-
-# tmux設定のコピー
-# .tmux.confをローカルからscpするか、手動で作成
-```
-
-### .tmux.conf設定
-
-**ローカルマシンから.tmux.confをコピー:**
-
-```bash
-scp -i ~/.ssh/aws-key.pem .tmux.conf ubuntu@your-ec2-ip:~/.tmux.conf
-```
-
-**または手動で作成:**
-
-```bash
-# EC2インスタンス上で
-nano ~/.tmux.conf
-# プロジェクトの.tmux.confの内容を貼り付け
-```
-
-### セキュリティのベストプラクティス
-
-**1. パスワード認証を無効化:**
-
-Dockerイメージではすでに無効化されています。EC2の場合:
-
-```bash
-sudo nano /etc/ssh/sshd_config
-# 以下が設定されていることを確認:
-# PasswordAuthentication no
-# PubkeyAuthentication yes
-
-sudo systemctl restart sshd
-```
-
-**2. ファイアウォールの設定 (オプション):**
-
-```bash
-sudo ufw allow 22/tcp
-sudo ufw enable
-```
-
-**3. SSH鍵の定期的な更新**
-
-**4. 未使用時はインスタンスを停止** (コスト削減のため)
+| タスク | コマンド |
+| ------ | --------- |
+| リモートフォルダを開く | `Ctrl+K Ctrl+O` → フォルダを選択 |
+| 新しいターミナル | `` Ctrl+Shift+` `` |
+| リモート接続を閉じる | 左下の"SSH: hostname"をクリック → "Close Remote Connection" |
+| ウィンドウをリロード | `Ctrl+Shift+P` → "Developer: Reload Window" |
 
 ---
 
-## 3. VS Code Remote-SSHの使用
+## セクション3: Windows PSMUX Tmuxクライアント
 
-VS Codeからリモートマシン(DockerまたはAWS)に接続して開発します。
+PSMUXは、ネイティブな体験を提供するWindows用の最新tmuxクライアントです。
 
-### Remote-SSH拡張機能のインストール
+### インストール
 
-**1. VS Codeを開く**
+1. **PSMUXをインストール**:
+   - [PSMUX GitHubリリース](https://github.com/lupont/psmux)を訪問(例URL)
+   - Windows用の最新`.exe`または`.msi`インストーラーをダウンロード
+   - インストーラーを実行してプロンプトに従う
 
-**2. 拡張機能ビューを開く:**
+2. **インストールを確認**:
+   ```powershell
+   psmux --version
+   ```
 
-- macOS: `Cmd+Shift+X`
-- Windows/Linux: `Ctrl+Shift+X`
+### リモートtmuxへの接続
 
-**3. "Remote - SSH"を検索してインストール**
-
-発行者: Microsoft
-
-### SSH設定
-
-**`~/.ssh/config` ファイルを編集:**
-
-```
-# Docker環境
-Host tmux-demo
-    HostName localhost
-    Port 2222
-    User developer
-    IdentityFile ~/.ssh/your_private_key
-
-# AWS EC2
-Host aws-dev
-    HostName your-ec2-public-ip
-    Port 22
-    User ubuntu
-    IdentityFile ~/.ssh/aws-key.pem
-```
-
-### リモートホストへの接続
-
-**1. コマンドパレットを開く:**
-
-- macOS: `Cmd+Shift+P`
-- Windows/Linux: `Ctrl+Shift+P`
-
-**2. "Remote-SSH: Connect to Host..."を選択**
-
-**3. 設定したホストを選択:**
-
-- `tmux-demo` (Docker)
-- `aws-dev` (AWS EC2)
-
-**4. 新しいVS Codeウィンドウが開きます** - リモートマシンに接続されています!
-
-### リモート作業
-
-- **フォルダーを開く:** リモートマシン上のプロジェクトフォルダーに移動
-- **ターミナル:** 統合ターミナルはリモートマシン上で実行
-- **拡張機能:** リモートでインストールする拡張機能を選択
-- **ファイル編集:** 通常どおり、すべてリモートで保存
-
-**詳細なガイドは以下を参照:**
-
-[VS Code Remote-SSH完全ガイド](docs/vscode-remote-ssh.md)
-
----
-
-## 4. Windows PSMUXクライアント
-
-WindowsからtmuxセッションにネイティブClarkに接続します。
-
-### PSMUXとは?
-
-PSMUXは、Windows向けの最新のtmuxクライアントで以下の機能を提供します:
-
-- ネイティブなWindows体験 (WSL不要)
-- マウスサポート
-- より良いレンダリング
-- セッションプロファイル
-- クリップボード統合
-
-### クイック接続
-
-**Dockerコンテナ:**
+#### AWS EC2に接続
 
 ```powershell
-psmux connect -h localhost -p 2222 -u developer -i C:\Users\YourName\.ssh\tmux_demo_key
+# EC2インスタンスの詳細に置き換えてください
+psmux connect -h <EC2ホスト名> -p 22 -u <ユーザー名> -i C:\Users\YourName\.ssh\aws-key.pem
 ```
 
-**AWS EC2:**
+### 基本的なtmuxコマンド(PSMUX経由)
 
-```powershell
-psmux connect -h your-ec2-public-ip -p 22 -u ubuntu -i C:\Users\YourName\.ssh\aws-key.pem
-```
+重要: プレフィックスは**Ctrl+^**です(Ctrl+bではありません)
 
-### SSH設定の使用
+| コマンド | 説明 |
+| --------- | ------------- |
+| `Ctrl+^ c` | 新しいウィンドウを作成 |
+| `Ctrl+^ \|` | ペインを水平分割 |
+| `Ctrl+^ -` | ペインを垂直分割 |
+| `Ctrl+^ arrow` | ペイン間を移動 |
+| `Ctrl+^ d` | セッションからデタッチ |
+| `Ctrl+^ [` | スクロールモードに入る(矢印キーでスクロール、`q`で終了) |
 
-SSH設定ファイル (`C:\Users\YourName\.ssh\config`) がある場合:
+### PSMUX固有の機能
 
-```powershell
-psmux connect tmux-demo
-psmux connect aws-dev
-```
+- **ネイティブWindows統合**: コピー/ペーストがWindowsクリップボードで動作
+- **マウスサポート**: 完全なマウスサポート(クリックでペイン選択、スクロールでナビゲート)
+- **セッション管理**: 複数のtmuxセッションを管理するGUI
+- **フォントレンダリング**: 従来のターミナルエミュレーターよりも優れたフォントレンダリング
 
-PSMUXはSSH設定を自動的に読み込みます!
+### セッションプロファイルの作成
 
-### 基本的な使用方法
+PSMUXは、AWS環境への素早いアクセスのために接続プロファイルを保存できます。
 
-接続後、tmuxコマンドを通常どおり使用:
-
-```bash
-tmux                          # 新しいセッションを開始
-tmux ls                       # セッション一覧
-tmux attach -t <name>         # セッションに再接続
-```
-
-プレフィックスキー (Ctrl+^) がemacsと競合しないことに注意してください!
-
-**詳細なガイドは以下を参照:**
-
-[PSMUX完全ガイド](docs/psmux-guide.md)
+詳細なPSMUX使用方法については、[docs/psmux-guide.md](docs/psmux-guide.md)を参照してください。
 
 ---
 
-## 5. VS Codeターミナルとtmuxの統合（オプション）
+## セクション4: VS Codeターミナルとtmuxの統合(オプション)
 
-*注: これはオプションの高度な機能で、基本的なRemote-SSH使用とは別のものです。*
+**注意**: これはオプションの高度な機能で、基本的なRemote-SSH使用とは別のものです。
 
 ### 概要
 
-VS Code統合ターミナルをtmuxと連携させることで以下が可能:
+VS Codeの統合ターミナルがtmuxと自動的に連携するように設定できます:
 
-- **永続的なセッション**: VS Code切断後もターミナル作業が継続
-- **ターミナル多重化**: VS Codeターミナル内で複数ペイン
-- **ネットワーク耐性**: 接続が切れても作業を継続可能
+- **永続的なセッション**: VS Codeの切断後もターミナル作業が持続
+- **ターミナル多重化**: VS Codeターミナル内で複数のペイン
+- **ネットワーク耐性**: 接続が切れても作業を継続
 
 ### クイック例
 
-最もシンプルな方法 - VS Codeターミナルで手動でtmuxを実行:
+最も簡単な方法 - VS Codeのターミナルで手動でtmuxを実行:
 
-1. Remote-SSHでリモートホストに接続
-2. VS Codeターミナルを開く (`` Ctrl+` ``)
-3. `tmux` を実行してセッション開始
-4. プレフィックス `Ctrl+^` でtmuxを制御
+1. Remote-SSH経由でリモートホストに接続
+2. VS Codeターミナルを開く(`` Ctrl+` ``)
+3. `tmux`を実行してセッションを開始
+4. プレフィックス`Ctrl+^`でtmuxを制御
 
-### いつ使うべきか
+### これを使用する場合
 
 ✅ **適している場合**:
-- 切断にも耐える長時間実行プロセス
-- 複雑なマルチペインターミナル設定
+- 切断後も持続する必要がある長時間実行プロセス
+- 複雑な複数ペインターミナルセットアップ
 - 不安定なネットワーク接続
 
 ❌ **不要な場合**:
 - 基本的なRemote-SSH開発
 - シンプルなターミナル使用
-- 切断がほとんどない環境
+- めったに切断しない場合
 
 ### 完全ガイド
 
-自動接続、シェルプロファイル統合、トラブルシューティングの詳細:
+自動アタッチ、シェルプロファイル統合、トラブルシューティングの詳細なセットアップについては:
 
-**📚 完全ガイドを参照:** [VS Code tmux統合](docs/vscode-tmux-integration.ja.md) ([English](docs/vscode-tmux-integration.md))
-
----
-
-## ヘルプとリソース
-
-### プロジェクト構成
-
-```
-tmux-demo/
-├── Dockerfile              # Ubuntu 24.04 + SSH + tmux + emacs
-├── docker-compose.yml      # Dockerサービス設定
-├── .tmux.conf              # tmux設定 (Ctrl+^ プレフィックス)
-├── .dockerignore          # Docker除外ファイル
-├── scripts/
-│   ├── setup-ssh.sh       # SSH鍵セットアップスクリプト
-│   ├── install-tmux-emacs.sh  # AWS用インストールスクリプト
-│   └── test-connection.sh # 接続テストスクリプト
-├── docs/
-│   ├── ssh-setup.md       # SSH詳細ガイド
-│   ├── vscode-remote-ssh.md   # VS Code Remote-SSH詳細ガイド
-│   └── psmux-guide.md     # PSMUX詳細ガイド
-└── README.md              # このファイル
-```
-
-### 詳細ガイド
-
-- **[SSHセットアップガイド](docs/ssh-setup.ja.md)** - SSH鍵生成、設定、トラブルシューティング
-- **[VS Code Remote-SSHガイド](docs/vscode-remote-ssh.ja.md)** - 詳細なRemote-SSHセットアップ
-- **[PSMUXガイド](docs/psmux-guide.ja.md)** - Windows tmuxクライアント完全ガイド
-
-### よくある質問
-
-**Q: DockerとAWS、どちらを使うべきですか?**
-
-A: まずDockerでローカルテスト、その後AWS EC2に展開してください。Dockerは無料でクイックテストが可能です。
-
-**Q: なぜプレフィックスがCtrl+^なのですか?**
-
-A: Emacsユーザー向けです。デフォルトのCtrl+bやよく使われるCtrl+aはemacsのキーバインドと競合します。Ctrl+^は競合を避けます。
-
-**Q: .tmux.confを変更できますか?**
-
-A: もちろんです! `.tmux.conf`はよくコメントされており、ニーズに合わせてカスタマイズできます。
-
-**Q: 複数のtmuxセッションを持てますか?**
-
-A: はい:
-```bash
-tmux new -s work     # "work"セッションを作成
-tmux new -s personal # "personal"セッションを作成
-tmux ls              # すべてのセッションを一覧
-tmux attach -t work  # "work"に接続
-```
-
-**Q: VS Code Remote-SSHでtmuxを使う必要がありますか?**
-
-A: いいえ、これらは独立しています:
-- **Remote-SSH:** VS Codeエディタ全体がリモートマシン上で動作
-- **tmux:** セッション永続化とマルチペイン用のターミナルツール
-
-両方を組み合わせることも可能です!
+**📚 完全ガイドを参照:** [VS Code tmux統合](docs/vscode-tmux-integration.ja.md)
 
 ---
 
-## 次のステップ
+## クイックリファレンス
 
-**1. ローカルでテスト:**
+### tmux基礎(プレフィックス: Ctrl+^)
+
+| コマンド | 説明 |
+| --------- | ------------- |
+| `tmux` | 新しいセッションを開始 |
+| `tmux ls` | セッションをリスト |
+| `tmux attach -t <name>` | セッションにアタッチ |
+| `Ctrl+^ c` | 新しいウィンドウ |
+| `Ctrl+^ \|` | 水平分割 |
+| `Ctrl+^ -` | 垂直分割 |
+| `Ctrl+^ d` | セッションをデタッチ |
+| `Ctrl+^ [` | スクロールモード |
+
+### 便利なコマンド
 
 ```bash
-docker-compose up -d
-ssh tmux-demo
-tmux
+# 接続をテスト
+./scripts/test-connection.sh <host> <port> <key> <user>
+
+# SSH鍵をセットアップ
+./scripts/setup-ssh.sh ~/.ssh/your_key.pub
+
+# 新しいUbuntuにインストール(AWS EC2)
+./scripts/install-tmux-emacs.sh
 ```
 
-**2. AWS EC2へ展開:**
+---
 
-- EC2インスタンスを起動
-- `install-tmux-emacs.sh` を実行
-- SSH経由で接続
-- tmuxで開発開始!
+## コントリビューション
 
-**3. VS Code統合:**
-
-- Remote-SSH拡張機能をインストール
-- SSH設定を構成
-- リモート接続してコーディング!
-
-**4. PSMUXを試す (Windows):**
-
-- PSMUXをインストール
-- Dockerまたは AWS に接続
-- ネイティブなtmux体験を楽しむ!
+コントリビューションを歓迎します！お気軽にPull Requestを提出してください。
 
 ---
 
 ## ライセンス
 
-このプロジェクトはMITライセンスの下で公開されています。
-
-## 貢献
-
-改善案やバグ報告を歓迎します!
+MIT License - LICENSEファイルで詳細を参照
 
 ---
 
-**楽しい開発を! 🚀**
+## 追加リソース
+
+### ドキュメント
+
+- [SSH設定ガイド](docs/ssh-setup.ja.md) - SSH鍵の生成と設定
+- [VS Code Remote-SSHガイド](docs/vscode-remote-ssh.ja.md) - 詳細なRemote-SSHセットアップ
+- [VS Codeトラブルシューティング](docs/vscode-troubleshooting.ja.md) - よくある問題と解決策
+- [Dockerセットアップガイド](docs/docker-setup.ja.md) - ローカルテスト環境(オプション)
+
+### 外部リソース
+
+- [tmuxチートシート](https://tmuxcheatsheet.com/)
+- [emacsチュートリアル](https://www.gnu.org/software/emacs/tour/)
+- [VS Codeリモート開発](https://code.visualstudio.com/docs/remote/remote-overview)
+- [AWS EC2ユーザーガイド](https://docs.aws.amazon.com/ec2/)
+
+---
+
+**質問や問題がありますか？** GitHubでissueを開くか、`docs/`ディレクトリ内の詳細ガイドを参照してください。
