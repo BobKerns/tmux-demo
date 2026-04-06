@@ -8,11 +8,11 @@ This guide covers SSH key generation and configuration for connecting to your tm
 
 ## Table of Contents
 
-1. [SSH Key Type](#ssh-key-type)
-2. [Generating SSH Keys](#generating-ssh-keys)
-3. [Adding Keys to Remote Host](#adding-keys-to-remote-host)
-4. [SSH Config File](#ssh-config-file)
-5. [Troubleshooting](#troubleshooting)
+1. [Generating SSH Keys](#generating-ssh-keys)
+2. [Adding Keys to Remote Host](#adding-keys-to-remote-host)
+3. [SSH Config File](#ssh-config-file)
+4. [Troubleshooting](#troubleshooting)
+5. [Security Best Practices](#security-best-practices)
 
 ---
 
@@ -48,7 +48,8 @@ ssh-keygen -t ed25519 -f ~/.ssh/tmux_demo_key -C "tmux-demo"
 ssh-keygen -t ed25519 -f C:\Users\YourName\.ssh\tmux_demo_key -C "tmux-demo"
 ```
 
-**Note**: Windows 10 and later include OpenSSH by default. If the command isn't found, enable it in Settings → Apps → Optional Features → OpenSSH Client.
+**Note**: Windows 10 and later include OpenSSH by default.
+If the command isn't found, enable it in Settings → Apps → Optional Features → OpenSSH Client.
 
 #### Using Git Bash
 
